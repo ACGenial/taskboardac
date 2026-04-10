@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarefas — Análise de Crédito</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+  :root {
+    --bg: #0f0f13; --surface: #17171f; --border: #2a2a38;
+    --text: #e8e8f0; --muted: #6b6b85;
+    --p1: #ff4d6d; --p2: #ffa94d; --p3: #69db7c;
+    --accent: #845ef7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+  header h1 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; }
+  header h1 span { color: var(--accent); }
+  .top-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn { padding: 7px 16px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; border: 1px solid var(--border); transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #6f42e0; }
+  .btn-ghost { background: var(--surface); color: var(--muted); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+  .btn-clear { background: rgba(255,77,109,0.1); color: var(--p1); border-color: rgba(255,77,109,0.3); display:none; }
+  .btn-clear:hover { background: rgba(255,77,109,0.2); }
+  .btn-clear.show { display: inline-flex; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; margin-bottom: 24px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .stat-label { font-size: 10px; color: var(--muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
+
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: #1e1e2a; }
+  th { font-family: 'Syne', sans-serif; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); padding: 0; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); position: relative; }
+
+  /* Cabeçalho com filtro */
+  .th-inner { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 11px 12px; cursor: pointer; user-select: none; transition: background 0.1s; border-radius: 0; }
+  .th-inner:hover { background: rgba(132,94,247,0.08); }
+  .th-inner.filtered { color: var(--accent); }
+  .th-label { display: flex; align-items: center; gap: 5px; }
+  .th-arrow { font-size: 9px; opacity: 0.5; transition: transform 0.15s; }
+  .th-inner.open .th-arrow { transform: rotate(180deg); opacity: 1; }
+  .th-inner.filtered .th-arrow { opacity: 1; color: var(--accent); }
+
+  /* Dropdown de filtro */
+  .col-dropdown { display: none; position: absolute; top: 100%; left: 0; min-width: 180px; background: #1e1e2a; border: 1px solid var(--border); border-radius: 10px; z-index: 99; box-shadow: 0 8px 32px rgba(0,0,0,0.5); overflow: hidden; }
+  .col-dropdown.open { display: block; }
+  .col-dropdown-item { padding: 9px 14px; font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.1s; font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .col-dropdown-item:hover { background: rgba(132,94,247,0.1); color: var(--text); }
+  .col-dropdown-item.active { color: var(--accent); font-weight: 600; }
+  .col-dropdown-item .item-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .col-dropdown-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* Indicador de filtro ativo na th */
+  .filter-badge { background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 9px; font-weight: 700; margin-left: 2px; }
+
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #1a1a24; }
+  td { padding: 8px 12px; vertical-align: middle; }
+  tr.hidden { display: none; }
+
+  .editable { outline: none; cursor: text; border-radius: 4px; padding: 2px 4px; min-width: 20px; transition: background 0.1s; }
+  .editable:focus { background: rgba(132,94,247,0.12); outline: 1px solid var(--accent); }
+  .task-note { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 2px; outline: none; }
+  .task-note:focus { background: rgba(132,94,247,0.08); outline: 1px solid var(--accent); border-radius: 3px; padding: 1px 3px; }
+
+  select { background: transparent; border: none; outline: none; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; padding: 3px 6px; border-radius: 20px; -webkit-appearance: none; appearance: none; text-align: center; }
+  .sel-p select { padding: 3px 8px; border-radius: 20px; border: 1px solid; }
+  .sel-s select { padding: 3px 8px; border-radius: 6px; border: 1px solid; }
+
+  .prio-p1 { background: rgba(255,77,109,0.15); color: var(--p1); border-color: rgba(255,77,109,0.35) !important; }
+  .prio-p2 { background: rgba(255,169,77,0.15); color: var(--p2); border-color: rgba(255,169,77,0.35) !important; }
+  .prio-p3 { background: rgba(105,219,124,0.15); color: var(--p3); border-color: rgba(105,219,124,0.35) !important; }
+
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; flex-shrink: 0; }
+  .dot-pendente { background: var(--muted); }
+  .dot-em-andamento { background: var(--p3); }
+  .dot-aguardando { background: var(--p2); }
+  .dot-concluido { background: #339af0; }
+  .sel-s.st-pendente select { background: rgba(107,107,133,0.12); color: var(--muted); border-color: var(--border) !important; }
+  .sel-s.st-em-andamento select { background: rgba(105,219,124,0.12); color: var(--p3); border-color: rgba(105,219,124,0.3) !important; }
+  .sel-s.st-aguardando select { background: rgba(255,169,77,0.12); color: var(--p2); border-color: rgba(255,169,77,0.3) !important; }
+  .sel-s.st-concluido select { background: rgba(51,154,240,0.12); color: #74c0fc; border-color: rgba(51,154,240,0.3) !important; }
+
+  .resp-wrap { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .resp-tag { background: rgba(132,94,247,0.15); color: #b197fc; border: 1px solid rgba(132,94,247,0.25); border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.1s; }
+  .resp-tag:hover { background: rgba(255,77,109,0.15); color: var(--p1); border-color: rgba(255,77,109,0.3); text-decoration: line-through; }
+  .add-resp { background: rgba(132,94,247,0.08); color: var(--muted); border: 1px dashed rgba(132,94,247,0.3); border-radius: 4px; padding: 2px 7px; font-size: 11px; cursor: pointer; transition: all 0.1s; }
+  .add-resp:hover { color: #b197fc; border-color: rgba(132,94,247,0.6); }
+  .resp-input { background: rgba(132,94,247,0.15); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 6px; font-size: 11px; color: #b197fc; font-family: 'DM Sans', sans-serif; width: 60px; outline: none; }
+
+  .impact-cell { font-size: 12px; color: var(--muted); max-width: 160px; }
+
+  .deadline-cell { white-space: nowrap; }
+  .dl-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; cursor: pointer; padding: 3px 8px; border-radius: 6px; transition: background 0.1s; border: none; background: transparent; font-family: 'DM Sans', sans-serif; }
+  .dl-btn:hover { background: rgba(132,94,247,0.1); }
+  .dl-empty { color: var(--muted); font-style: italic; }
+  .dl-vencido { color: var(--p1); }
+  .dl-hoje { color: var(--p2); }
+  .dl-proximo { color: #ffd43b; }
+  .dl-ok { color: var(--p3); }
+  .lock-icon { font-size: 10px; opacity: 0.5; }
+
+  .del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; transition: all 0.1s; opacity: 0; }
+  tbody tr:hover .del-btn { opacity: 1; }
+  .del-btn:hover { color: var(--p1); background: rgba(255,77,109,0.1); }
+  .num-cell { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--accent); color: var(--text); padding: 10px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; z-index: 200; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 50; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 480px; max-width: 95vw; }
+  .modal h2 { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input, .form-group select, .form-group textarea { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+  .form-group textarea { resize: vertical; min-height: 52px; }
+  .form-group select option { background: #1a1a2e; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+  .pwd-modal { width: 360px; }
+  .pwd-hint { font-size: 12px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+  .pwd-error { font-size: 12px; color: var(--p1); margin-top: 6px; display: none; }
+  .pwd-row { position: relative; }
+  .pwd-row input { width: 100%; padding-right: 38px; letter-spacing: 3px; font-size: 15px; }
+  .pwd-eye { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0; }
+  .date-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); display: none; flex-direction: column; gap: 10px; }
+  .date-section.show { display: flex; }
+  .btn-remove-dl { background: rgba(255,77,109,0.08); color: var(--p1); border: 1px solid rgba(255,77,109,0.25); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; width: fit-content; }
+  .btn-remove-dl:hover { background: rgba(255,77,109,0.15); }
+
+  tr[data-s="concluido"] td { opacity: 0.5; }
+  tr[data-s="concluido"] .editable { text-decoration: line-through; }
+
+  /* Linha de filtros ativos */
+  .active-filters { display: none; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .active-filters.show { display: flex; }
+  .active-filter-tag { background: rgba(132,94,247,0.15); color: #b197fc; border: 1px solid rgba(132,94,247,0.3); border-radius: 20px; padding: 3px 10px; font-size: 11px; display: flex; align-items: center; gap: 5px; }
+  .active-filter-tag span { cursor: pointer; opacity: 0.6; }
+  .active-filter-tag span:hover { opacity: 1; }
+  .af-label { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📋 Gestão de <span>Tarefas</span> — Análise de Crédito</h1>
+  <div class="top-actions">
+    <button class="btn btn-clear" id="btn-clear-all" onclick="clearAllFilters()">✕ Limpar filtros</button>
+    <button class="btn btn-ghost" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <button class="btn btn-primary" onclick="openModal()">+ Nova Tarefa</button>
+  </div>
+</header>
+
+<div class="stats" id="stats-bar"></div>
+
+<!-- Filtros ativos -->
+<div class="active-filters" id="active-filters">
+  <span class="af-label">Filtrando por:</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th><div class="th-inner" style="cursor:default;padding:11px 12px">#</div></th>
+
+        <th id="th-name">
+          <div class="th-inner" onclick="toggleDropdown('name')">
+            <span class="th-label">Atividade <span class="filter-badge" id="badge-name" style="display:none"></span></span>
+            <span class="th-arrow">▼</span>
+          </div>
+          <div class="col-dropdown" id="dd-name"></div>
+        </th>
+
+        <th id="th-prio">
+          <div class="th-inner" onclick="toggleDropdown('prio')">
+            <span class="th-label">Prioridade <span class="filter-badge" id="badge-prio" style="display:none"></span></span>
+            <span class="th-arrow">▼</span>
+          </div>
+          <div class="col-dropdown" id="dd-prio">
+            <div class="col-dropdown-item" onclick="applyColFilter('prio','todos')"><span class="item-dot" style="background:var(--muted)"></span>Todos</div>
+            <div class="col-dropdown-sep"></div>
+            <div class="col-dropdown-item" onclick="applyColFilter('prio','p1')"><span class="item-dot" style="background:var(--p1)"></span>P1</div>
+            <div class="col-dropdown-item" onclick="applyColFilter('prio','p2')"><span class="item-dot" style="background:var(--p2)"></span>P2</div>
+            <div class="col-dropdown-item" onclick="applyColFilter('prio','p3')"><span class="item-dot" style="background:var(--p3)"></span>P3</div>
+          </div>
+        </th>
+
+        <th id="th-resp">
+          <div class="th-inner" onclick="toggleDropdown('resp')">
+            <span class="th-label">Responsáveis <span class="filter-badge" id="badge-resp" style="display:none"></span></span>
+            <span class="th-arrow">▼</span>
+          </div>
+          <div class="col-dropdown" id="dd-resp"></div>
+        </th>
+
+        <th id="th-impact">
+          <div class="th-inner" onclick="toggleDropdown('impact')">
+            <span class="th-label">Impacto <span class="filter-badge" id="badge-impact" style="display:none"></span></span>
+            <span class="th-arrow">▼</span>
+          </div>
+          <div class="col-dropdown" id="dd-impact"></div>
+        </th>
+
+        <th id="th-status">
+          <div class="th-inner" onclick="toggleDropdown('status')">
+            <span class="th-label">Status <span class="filter-badge" id="badge-status" style="display:none"></span></span>
+            <span class="th-arrow">▼</span>
+          </div>
+          <div class="col-dropdown" id="dd-status">
+            <div class="col-dropdown-item" onclick="applyColFilter('status','todos')"><span class="item-dot" style="background:var(--muted)"></span>Todos</div>
+            <div class="col-dropdown-sep"></div>
+            <div class="col-dropdown-item" onclick="applyColFilter('status','pendente')"><span class="item-dot" style="background:var(--muted)"></span>Pendente</div>
+            <div class="col-dropdown-item" onclick="applyColFilter('status','em-andamento')"><span class="item-dot" style="background:var(--p3)"></span>Em andamento</div>
+            <div class="col-dropdown-item" onclick="applyColFilter('status','aguardando')"><span class="item-dot" style="background:var(--p2)"></span>Aguardando</div>
+            <div class="col-dropdown-item" onclick="applyColFilter('status','concluido')"><span class="item-dot" style="background:#339af0"></span>Concluído</div>
+          </div>
+        </th>
+
+        <th id="th-deadline">
+          <div class="th-inner" onclick="toggleDropdown('deadline')">
+            <span class="th-label">🔒 Deadline <span class="filter-badge" id="badge-deadline" style="display:none"></span></span>
+            <span class="th-arrow">▼</span>
+          </div>
+          <div class="col-dropdown" id="dd-deadline">
+            <div class="col-dropdown-item" onclick="applyColFilter('deadline','todos')"><span class="item-dot" style="background:var(--muted)"></span>Todos</div>
+            <div class="col-dropdown-sep"></div>
+            <div class="col-dropdown-item" onclick="applyColFilter('deadline','vencido')"><span class="item-dot" style="background:var(--p1)"></span>🔴 Vencido</div>
+            <div class="col-dropdown-item" onclick="applyColFilter('deadline','hoje')"><span class="item-dot" style="background:var(--p2)"></span>🟠 Vence hoje</div>
+            <div class="col-dropdown-item" onclick="applyColFilter('deadline','proximo')"><span class="item-dot" style="background:#ffd43b"></span>🟡 Próximos 3 dias</div>
+            <div class="col-dropdown-item" onclick="applyColFilter('deadline','ok')"><span class="item-dot" style="background:var(--p3)"></span>🟢 No prazo</div>
+            <div class="col-dropdown-item" onclick="applyColFilter('deadline','sem')"><span class="item-dot" style="background:var(--muted)"></span>Sem deadline</div>
+          </div>
+        </th>
+
+        <th><div class="th-inner" style="cursor:default;padding:11px 12px"></div></th>
+      </tr>
+    </thead>
+    <tbody id="task-body"></tbody>
+  </table>
+</div>
+
+<!-- Modal nova tarefa -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>Nova Tarefa</h2>
+    <div class="form-grid">
+      <div class="form-group full"><label>Atividade</label><input id="f-name" type="text" placeholder="Nome da tarefa"></div>
+      <div class="form-group full"><label>Observação (opcional)</label><textarea id="f-note" placeholder="Ex: Aguardando documentação..."></textarea></div>
+      <div class="form-group"><label>Prioridade</label>
+        <select id="f-prio"><option value="p1">P1</option><option value="p2" selected>P2</option><option value="p3">P3</option></select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="f-status"><option value="pendente" selected>Pendente</option><option value="em-andamento">Em andamento</option><option value="aguardando">Aguardando</option><option value="concluido">Concluído</option></select>
+      </div>
+      <div class="form-group"><label>Responsáveis (vírgula)</label><input id="f-resp" type="text" placeholder="M1, M2, H"></div>
+      <div class="form-group full"><label>Impacto / Atendimento</label><input id="f-impact" type="text" placeholder="Ex: Maior Governança"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="addTask()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal deadline -->
+<div class="modal-overlay" id="pwd-modal">
+  <div class="modal pwd-modal">
+    <h2>🔒 Editar Deadline</h2>
+    <p class="pwd-hint">Este campo é protegido por senha. Somente você pode alterar datas de deadline.</p>
+    <div class="form-group">
+      <label>Senha</label>
+      <div class="pwd-row">
+        <input id="pwd-input" type="password" placeholder="••••••••" autocomplete="off">
+        <button class="pwd-eye" onclick="togglePwd()" tabindex="-1">👁</button>
+      </div>
+      <span class="pwd-error" id="pwd-error">❌ Senha incorreta. Tente novamente.</span>
+    </div>
+    <div class="date-section" id="date-section">
+      <div class="form-group"><label>Nova data de deadline</label><input id="date-input" type="date"></div>
+      <button class="btn-remove-dl" onclick="clearDeadline()">🗑 Remover deadline</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closePwdModal()">Cancelar</button>
+      <button class="btn btn-primary" id="pwd-btn" onclick="handlePwd()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'tarefas_analise_v1';
+
+const DEFAULT_TASKS = [
+  {id:1,name:'Recalibração de modelo PF',note:'',comp:'alta',prio:'p1',resp:['M2'],impact:'Maior Governança',status:'pendente',deadline:''},
+  {id:2,name:'Reavaliação dos ativos PFs',note:'',comp:'media',prio:'p1',resp:['M2','M1'],impact:'Maior Governança',status:'pendente',deadline:''},
+  {id:3,name:'Reavaliação maiores op. crédito e posteriormente toda carteira',note:'',comp:'media',prio:'p1',resp:['M2','M1'],impact:'Maior Governança',status:'pendente',deadline:''},
+  {id:4,name:'Relatório TVM',note:'Rayane revisar',comp:'nd',prio:'p1',resp:['H'],impact:'Maior abrangência de monitoramento',status:'pendente',deadline:''},
+  {id:5,name:'Organização de atas',note:'',comp:'media',prio:'p1',resp:['M1'],impact:'Organização',status:'pendente',deadline:''},
+  {id:6,name:'Elaboração de controle de comitês',note:'',comp:'media',prio:'p1',resp:['M1'],impact:'Organização',status:'pendente',deadline:''},
+  {id:7,name:'Automação dos limites de crédito colateral',note:'',comp:'alta',prio:'p1',resp:['M3','H'],impact:'Redução de SLA',status:'pendente',deadline:''},
+  {id:8,name:'Modelo ECL — Res. 4966 e IFRS9 mantendo PPERIC',note:'',comp:'alta',prio:'p1',resp:['M3'],impact:'Maior Governança',status:'pendente',deadline:''},
+  {id:9,name:'Apresentação fechamento do 1º Tri',note:'',comp:'media',prio:'p1',resp:['M2','M3'],impact:'Manutenção e visibilidade',status:'pendente',deadline:''},
+  {id:10,name:'Controle de pendências de análises',note:'',comp:'media',prio:'p1',resp:['M2'],impact:'Organização e controle',status:'pendente',deadline:''},
+  {id:11,name:'BMG Foods',note:'',comp:'alta',prio:'p1',resp:['H'],impact:'Apoio a áreas parceiras (IB)',status:'pendente',deadline:''},
+  {id:12,name:'Reestruturação do banco de dados',note:'',comp:'alta',prio:'p1',resp:['M3','M1'],impact:'Organização e acurácia nos entregáveis',status:'pendente',deadline:''},
+  {id:13,name:'Cobrança — pipeline com atraso acima de 30 dias',note:'',comp:'baixa',prio:'p1',resp:['M2'],impact:'Manutenção de alto impacto no capital do banco',status:'pendente',deadline:''},
+  {id:14,name:'Incluir Horus na carteira consolidada e 3040',note:'',comp:'alta',prio:'p2',resp:['M2','M3'],impact:'Maior abrangência de monitoramento',status:'pendente',deadline:''},
+  {id:15,name:'Organização de pastas da rede',note:'',comp:'baixa',prio:'p2',resp:['M2','M1'],impact:'Organização',status:'pendente',deadline:''},
+  {id:16,name:'Aprimoramento dos modelos de crédito (2º modelo de spread)',note:'',comp:'alta',prio:'p2',resp:['M3','H'],impact:'Maior Governança e redução de SLA',status:'pendente',deadline:''},
+  {id:17,name:'Análise CRA Francieli',note:'Aguardando resposta da equipe de risco adm.',comp:'media',prio:'p2',resp:['M2','M3'],impact:'Apoio a áreas parceiras (Adm.)',status:'aguardando',deadline:''},
+  {id:18,name:'CPR-F Deborah Novais',note:'Aguardando documentação da gestora',comp:'media',prio:'p2',resp:['M2','M3'],impact:'Apoio a áreas parceiras (Adm.)',status:'aguardando',deadline:''},
+  {id:19,name:'CRA Alexandre Lerman',note:'Aguardando documentação da gestora',comp:'media',prio:'p2',resp:['M2','M3'],impact:'Apoio a áreas parceiras (Adm.)',status:'aguardando',deadline:''},
+  {id:20,name:'CPR-F Diogo Dias Greca',note:'Aguardando documentação da gestora',comp:'media',prio:'p2',resp:['M2','M3'],impact:'Apoio a áreas parceiras (Adm.)',status:'aguardando',deadline:''},
+  {id:21,name:'Agnaldo Resende',note:'Aguardando documentação da gestora',comp:'media',prio:'p2',resp:['M2','M3'],impact:'Apoio a áreas parceiras (Adm.)',status:'aguardando',deadline:''},
+  {id:22,name:'Riza Terrax — Compra de fazenda',note:'Gabriel tocou a análise, pendente envio',comp:'media',prio:'p2',resp:['M2','M3'],impact:'Apoio a áreas parceiras (Adm.)',status:'em-andamento',deadline:''},
+  {id:23,name:'Reavaliação Qista',note:'',comp:'media',prio:'p2',resp:['M2'],impact:'Manutenção — Apoio à distribuição',status:'pendente',deadline:''},
+  {id:24,name:'Leitura automática de DFs via IA',note:'',comp:'alta',prio:'p3',resp:['M3'],impact:'Redução de SLA',status:'pendente',deadline:''},
+];
+
+let tasks = [], nextId = 100;
+let pendingId = null, unlocked = false;
+
+// Filtros por coluna: { prio, resp, impact, status, deadline, name }
+let colFilters = { prio:'todos', resp:'todos', impact:'todos', status:'todos', deadline:'todos', name:'todos' };
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function load() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    const p = JSON.parse(raw);
+    tasks = p.tasks; nextId = p.nextId || 100;
+    tasks.forEach(t => { if (!('deadline' in t)) t.deadline = ''; });
+  } else {
+    tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS)); save();
+  }
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({tasks, nextId}));
+  renderStats();
+}
+
+function dlUrgency(dl) {
+  if (!dl) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dl + 'T00:00:00');
+  const diff = Math.round((d - today) / 86400000);
+  if (diff < 0) return 'vencido';
+  if (diff === 0) return 'hoje';
+  if (diff <= 3) return 'proximo';
+  return 'ok';
+}
+
+function dlFormat(dl) {
+  if (!dl) return null;
+  const [y,m,d] = dl.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function dlClass(dl) {
+  return {vencido:'dl-vencido',hoje:'dl-hoje',proximo:'dl-proximo',ok:'dl-ok'}[dlUrgency(dl)] || '';
+}
+
+function dlEmoji(dl) {
+  return {vencido:'🔴',hoje:'🟠',proximo:'🟡',ok:'🟢'}[dlUrgency(dl)] || '';
+}
+
+function renderStats() {
+  const visible = tasks.filter(matchAllFilters);
+  const p1=visible.filter(t=>t.prio==='p1').length;
+  const p2=visible.filter(t=>t.prio==='p2').length;
+  const p3=visible.filter(t=>t.prio==='p3').length;
+  const ag=visible.filter(t=>t.status==='aguardando').length;
+  const done=visible.filter(t=>t.status==='concluido').length;
+  const venc=visible.filter(t=>{
+    if(!t.deadline||t.status==='concluido')return false;
+    const u=dlUrgency(t.deadline); return u==='vencido'||u==='hoje'||u==='proximo';
+  }).length;
+  document.getElementById('stats-bar').innerHTML=`
+    <div class="stat"><div class="stat-label">Visíveis</div><div class="stat-value" style="color:var(--text)">${visible.length}</div></div>
+    <div class="stat"><div class="stat-label">P1</div><div class="stat-value" style="color:var(--p1)">${p1}</div></div>
+    <div class="stat"><div class="stat-label">P2</div><div class="stat-value" style="color:var(--p2)">${p2}</div></div>
+    <div class="stat"><div class="stat-label">P3</div><div class="stat-value" style="color:var(--p3)">${p3}</div></div>
+    <div class="stat"><div class="stat-label">Aguardando</div><div class="stat-value" style="color:var(--p2)">${ag}</div></div>
+    <div class="stat"><div class="stat-label">Concluídas</div><div class="stat-value" style="color:#74c0fc">${done}</div></div>
+    ${venc>0?`<div class="stat"><div class="stat-label">⚠ Vencendo</div><div class="stat-value" style="color:var(--p1)">${venc}</div></div>`:''}
+  `;
+}
+
+// ---- FILTROS POR COLUNA ----
+function matchAllFilters(t) {
+  if (colFilters.prio !== 'todos' && t.prio !== colFilters.prio) return false;
+  if (colFilters.status !== 'todos' && t.status !== colFilters.status) return false;
+  if (colFilters.resp !== 'todos' && !t.resp.includes(colFilters.resp)) return false;
+  if (colFilters.impact !== 'todos' && t.impact !== colFilters.impact) return false;
+  if (colFilters.name !== 'todos' && !t.name.toLowerCase().includes(colFilters.name.toLowerCase())) return false;
+  if (colFilters.deadline !== 'todos') {
+    const u = dlUrgency(t.deadline);
+    if (colFilters.deadline === 'sem' && t.deadline) return false;
+    if (colFilters.deadline === 'vencido' && u !== 'vencido') return false;
+    if (colFilters.deadline === 'hoje' && u !== 'hoje') return false;
+    if (colFilters.deadline === 'proximo' && u !== 'proximo') return false;
+    if (colFilters.deadline === 'ok' && u !== 'ok') return false;
+  }
+  return true;
+}
+
+function applyColFilter(col, val) {
+  colFilters[col] = val;
+  closeAllDropdowns();
+  renderRows();
+  renderStats();
+  updateFilterUI();
+}
+
+function updateFilterUI() {
+  const labels = {
+    prio: {p1:'P1',p2:'P2',p3:'P3'},
+    status: {pendente:'Pendente','em-andamento':'Em andamento',aguardando:'Aguardando',concluido:'Concluído'},
+    deadline: {vencido:'🔴 Vencido',hoje:'🟠 Hoje',proximo:'🟡 Próximos 3 dias',ok:'🟢 No prazo',sem:'Sem deadline'},
+  };
+
+  let anyActive = false;
+
+  ['prio','resp','impact','status','deadline','name'].forEach(col => {
+    const val = colFilters[col];
+    const badge = document.getElementById('badge-'+col);
+    const thInner = document.querySelector(`#th-${col} .th-inner`);
+    if (!badge) return;
+
+    if (val === 'todos' || !val) {
+      badge.style.display = 'none';
+      if (thInner) thInner.classList.remove('filtered');
+    } else {
+      const lbl = labels[col]?.[val] || val;
+      badge.textContent = lbl;
+      badge.style.display = 'inline-block';
+      if (thInner) thInner.classList.add('filtered');
+      anyActive = true;
+    }
+
+    // highlight active item in dropdown
+    document.querySelectorAll(`#dd-${col} .col-dropdown-item`).forEach(item => {
+      item.classList.toggle('active', item.textContent.trim().startsWith(lbl) || item.dataset.val === val);
+    });
+  });
+
+  // Barra de filtros ativos
+  const bar = document.getElementById('active-filters');
+  const clearBtn = document.getElementById('btn-clear-all');
+  if (anyActive) {
+    bar.classList.add('show');
+    clearBtn.classList.add('show');
+    bar.innerHTML = '<span class="af-label">Filtrando por:</span>';
+    ['prio','resp','impact','status','deadline','name'].forEach(col => {
+      const val = colFilters[col];
+      if (val === 'todos' || !val) return;
+      const lbl = labels[col]?.[val] || val;
+      const tag = document.createElement('div');
+      tag.className = 'active-filter-tag';
+      tag.innerHTML = `${col === 'name' ? '🔍 ' : ''}${lbl} <span onclick="applyColFilter('${col}','todos')">✕</span>`;
+      bar.appendChild(tag);
+    });
+  } else {
+    bar.classList.remove('show');
+    clearBtn.classList.remove('show');
+  }
+}
+
+function clearAllFilters() {
+  colFilters = { prio:'todos', resp:'todos', impact:'todos', status:'todos', deadline:'todos', name:'todos' };
+  renderRows(); renderStats(); updateFilterUI();
+}
+
+// Dropdowns dinâmicos (resp, impact, name)
+function buildDynamicDropdowns() {
+  // Responsáveis únicos
+  const respSet = new Set();
+  tasks.forEach(t => t.resp.forEach(r => respSet.add(r)));
+  const respArr = [...respSet].sort();
+  const ddResp = document.getElementById('dd-resp');
+  ddResp.innerHTML = `<div class="col-dropdown-item" onclick="applyColFilter('resp','todos')"><span class="item-dot" style="background:var(--muted)"></span>Todos</div><div class="col-dropdown-sep"></div>`;
+  respArr.forEach(r => {
+    ddResp.innerHTML += `<div class="col-dropdown-item" onclick="applyColFilter('resp','${r}')"><span class="item-dot" style="background:#b197fc"></span>${r}</div>`;
+  });
+
+  // Impactos únicos
+  const impSet = new Set(tasks.map(t => t.impact).filter(Boolean));
+  const impArr = [...impSet].sort();
+  const ddImp = document.getElementById('dd-impact');
+  ddImp.innerHTML = `<div class="col-dropdown-item" onclick="applyColFilter('impact','todos')"><span class="item-dot" style="background:var(--muted)"></span>Todos</div><div class="col-dropdown-sep"></div>`;
+  impArr.forEach(i => {
+    const safe = i.replace(/'/g, "\\'");
+    ddImp.innerHTML += `<div class="col-dropdown-item" onclick="applyColFilter('impact','${safe}')"><span class="item-dot" style="background:var(--muted)"></span>${i}</div>`;
+  });
+
+  // Busca por nome
+  const ddName = document.getElementById('dd-name');
+  ddName.innerHTML = `
+    <div style="padding:8px 10px">
+      <input id="name-search" type="text" placeholder="Buscar atividade..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;">
+    </div>
+    <div class="col-dropdown-item" onclick="applyColFilter('name','todos')"><span class="item-dot" style="background:var(--muted)"></span>Limpar busca</div>
+  `;
+  document.getElementById('name-search').addEventListener('input', e => {
+    const val = e.target.value.trim();
+    colFilters.name = val || 'todos';
+    renderRows(); renderStats(); updateFilterUI();
+  });
+  document.getElementById('name-search').addEventListener('click', e => e.stopPropagation());
+}
+
+// Dropdown toggle
+let openDD = null;
+function toggleDropdown(col) {
+  const dd = document.getElementById('dd-'+col);
+  const thInner = document.querySelector(`#th-${col} .th-inner`);
+  if (openDD && openDD !== col) {
+    document.getElementById('dd-'+openDD).classList.remove('open');
+    document.querySelector(`#th-${openDD} .th-inner`)?.classList.remove('open');
+  }
+  const isOpen = dd.classList.contains('open');
+  dd.classList.toggle('open', !isOpen);
+  thInner?.classList.toggle('open', !isOpen);
+  openDD = isOpen ? null : col;
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.col-dropdown').forEach(d=>d.classList.remove('open'));
+  document.querySelectorAll('.th-inner').forEach(d=>d.classList.remove('open'));
+  openDD = null;
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('th')) closeAllDropdowns();
+});
+
+// ---- RENDERIZAÇÃO ----
+function renderRows() {
+  const tbody = document.getElementById('task-body');
+  tbody.innerHTML = '';
+  let num = 1;
+  tasks.forEach(t => {
+    const visible = matchAllFilters(t);
+    const tr = document.createElement('tr');
+    tr.dataset.id=t.id; tr.dataset.p=t.prio; tr.dataset.s=t.status;
+    if (!visible) tr.classList.add('hidden');
+
+    const dlHtml = t.deadline
+      ? `<button class="dl-btn ${dlClass(t.deadline)}" onclick="openPwd(${t.id})">${dlEmoji(t.deadline)} ${dlFormat(t.deadline)} <span class="lock-icon">🔒</span></button>`
+      : `<button class="dl-btn dl-empty" onclick="openPwd(${t.id})">+ Definir 🔒</button>`;
+
+    tr.innerHTML=`
+      <td class="num-cell">${String(num++).padStart(2,'0')}</td>
+      <td style="max-width:280px">
+        <div class="editable" contenteditable="true" data-field="name" data-id="${t.id}">${t.name}</div>
+        <div class="task-note editable" contenteditable="true" data-field="note" data-id="${t.id}">${t.note}</div>
+      </td>
+      <td><div class="sel-p prio-${t.prio}"><select data-field="prio" data-id="${t.id}">
+        <option value="p1" ${t.prio==='p1'?'selected':''}>P1</option>
+        <option value="p2" ${t.prio==='p2'?'selected':''}>P2</option>
+        <option value="p3" ${t.prio==='p3'?'selected':''}>P3</option>
+      </select></div></td>
+      <td><div class="resp-wrap" data-id="${t.id}">
+        ${t.resp.map(r=>`<span class="resp-tag" onclick="removeResp(${t.id},'${r}')">${r}</span>`).join('')}
+        <span class="add-resp" onclick="startAddResp(this,${t.id})">+</span>
+      </div></td>
+      <td class="impact-cell"><div class="editable" contenteditable="true" data-field="impact" data-id="${t.id}">${t.impact}</div></td>
+      <td><div class="sel-s st-${t.status}" style="display:flex;align-items:center">
+        <span class="status-dot dot-${t.status}"></span>
+        <select data-field="status" data-id="${t.id}">
+          <option value="pendente" ${t.status==='pendente'?'selected':''}>Pendente</option>
+          <option value="em-andamento" ${t.status==='em-andamento'?'selected':''}>Em andamento</option>
+          <option value="aguardando" ${t.status==='aguardando'?'selected':''}>Aguardando</option>
+          <option value="concluido" ${t.status==='concluido'?'selected':''}>Concluído</option>
+        </select>
+      </div></td>
+      <td class="deadline-cell">${dlHtml}</td>
+      <td><button class="del-btn" onclick="deleteTask(${t.id})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[contenteditable]').forEach(el => {
+    el.addEventListener('blur', () => {
+      const t=tasks.find(t=>t.id===+el.dataset.id);
+      if(t){t[el.dataset.field]=el.innerText.trim();save();buildDynamicDropdowns();toast('Salvo ✓');}
+    });
+    el.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();el.blur();}});
+  });
+
+  tbody.querySelectorAll('select').forEach(sel=>{
+    sel.addEventListener('change',()=>{
+      const t=tasks.find(t=>t.id===+sel.dataset.id);
+      if(!t)return; t[sel.dataset.field]=sel.value; save(); renderRows(); toast('Salvo ✓');
+    });
+  });
+}
+
+function deleteTask(id){
+  if(!confirm('Remover esta tarefa?'))return;
+  tasks=tasks.filter(t=>t.id!==id); save(); buildDynamicDropdowns(); renderRows(); toast('Tarefa removida');
+}
+
+function removeResp(id,r){
+  const t=tasks.find(t=>t.id===id); if(!t)return;
+  t.resp=t.resp.filter(x=>x!==r); save(); buildDynamicDropdowns(); renderRows(); toast('Responsável removido');
+}
+
+function startAddResp(btn,id){
+  const inp=document.createElement('input');
+  inp.className='resp-input'; inp.placeholder='M1'; inp.maxLength=6;
+  btn.replaceWith(inp); inp.focus();
+  const commit=()=>{
+    const val=inp.value.trim().toUpperCase();
+    if(val){const t=tasks.find(t=>t.id===id);if(t&&!t.resp.includes(val)){t.resp.push(val);save();}}
+    buildDynamicDropdowns(); renderRows();
+  };
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();});
+}
+
+// ---- DEADLINE ----
+function openPwd(id){
+  pendingId=id; unlocked=false;
+  const inp=document.getElementById('pwd-input');
+  inp.value=''; inp.disabled=false; inp.type='password';
+  document.getElementById('pwd-error').style.display='none';
+  document.getElementById('date-section').classList.remove('show');
+  document.getElementById('pwd-btn').textContent='Confirmar';
+  const t=tasks.find(t=>t.id===id);
+  document.getElementById('date-input').value=t&&t.deadline?t.deadline:'';
+  document.getElementById('pwd-modal').classList.add('open');
+  setTimeout(()=>inp.focus(),100);
+}
+
+function closePwdModal(){
+  document.getElementById('pwd-modal').classList.remove('open');
+  pendingId=null; unlocked=false;
+}
+
+async function handlePwd(){
+  if(!unlocked){
+    const val=document.getElementById('pwd-input').value;
+    const h=await sha256(val);
+    const correct=await sha256('Aten@594');
+    if(h===correct){
+      unlocked=true;
+      document.getElementById('pwd-error').style.display='none';
+      document.getElementById('date-section').classList.add('show');
+      document.getElementById('pwd-input').disabled=true;
+      document.getElementById('pwd-btn').textContent='Salvar';
+      setTimeout(()=>document.getElementById('date-input').focus(),100);
+    } else {
+      document.getElementById('pwd-error').style.display='block';
+      document.getElementById('pwd-input').value='';
+      document.getElementById('pwd-input').focus();
+    }
+  } else {
+    const dl=document.getElementById('date-input').value;
+    const t=tasks.find(t=>t.id===pendingId);
+    if(t){t.deadline=dl;save();renderRows();closePwdModal();toast(dl?'📅 Deadline salvo ✓':'Deadline removido');}
+  }
+}
+
+function clearDeadline(){ document.getElementById('date-input').value=''; }
+function togglePwd(){ const inp=document.getElementById('pwd-input'); inp.type=inp.type==='password'?'text':'password'; }
+
+document.getElementById('pwd-modal').addEventListener('keydown',e=>{if(e.key==='Enter')handlePwd();});
+
+// ---- MODAL TAREFA ----
+function openModal(){ document.getElementById('modal').classList.add('open'); document.getElementById('f-name').focus(); }
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+function addTask(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('Informe o nome da tarefa.');return;}
+  tasks.push({
+    id:nextId++, name,
+    note:document.getElementById('f-note').value.trim(),
+    comp:'nd',
+    prio:document.getElementById('f-prio').value,
+    resp:document.getElementById('f-resp').value.split(',').map(r=>r.trim().toUpperCase()).filter(Boolean),
+    impact:document.getElementById('f-impact').value.trim()||'—',
+    status:document.getElementById('f-status').value,
+    deadline:''
+  });
+  save(); buildDynamicDropdowns(); renderRows(); closeModal();
+  ['f-name','f-note','f-resp','f-impact'].forEach(id=>document.getElementById(id).value='');
+  toast('Tarefa adicionada ✓');
+}
+
+function exportCSV(){
+  const header=['#','Atividade','Observação','Prioridade','Responsáveis','Impacto','Status','Deadline'];
+  const rows=tasks.map((t,i)=>[i+1,`"${t.name}"`,`"${t.note}"`,t.prio,`"${t.resp.join(', ')}"`,`"${t.impact}"`,t.status,t.deadline?dlFormat(t.deadline):'']);
+  const csv=[header,...rows].map(r=>r.join(';')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='tarefas_analise_credito.csv'; a.click(); toast('CSV exportado ✓');
+}
+
+let toastTimer;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+document.getElementById('pwd-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closePwdModal();});
+
+load();
+buildDynamicDropdowns();
+renderStats();
+renderRows();
+updateFilterUI();
+</script>
+</body>
+</html>
